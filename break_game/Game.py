@@ -7,7 +7,7 @@ pygame.init()
 #SCREEEN
 WIDTH = 800
 HEIGHT = 600
-GRID = 20
+GRIDD = 20
 FPS = 60
 
 Break_Time = 180 #3 mins
@@ -331,7 +331,6 @@ def draw_rules():
         draw_text(line, 120, y)
 
         y += 35
-
 
 
 
