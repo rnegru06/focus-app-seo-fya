@@ -1,11 +1,13 @@
 """HomeScreen — landing dashboard. Picks a focus cycle, starts a session,
-shows today's stats. Transitions to TimerScreen on Start, SettingsScreen on gear."""
+shows today's stats. Transitions to TimerScreen on Start, SettingsScreen on gear.
+Also hosts the Snake Break tile: locked until the user completes their first
+focus session of the day, then opens the embedded snake mini-game."""
 from typing import Optional
 import pygame
 
 import theme
 from widgets import Button, Chip, IconButton, Card, NumberInput
-from data import stats
+from data import stats, preferences
 
 WINDOW_W, WINDOW_H = 1000, 700
 
@@ -17,10 +19,17 @@ CYCLES = [
 
 
 class HomeScreen:
-    def __init__(self, custom_focus: int = 25, custom_break: int = 5):
+    def __init__(
+        self,
+        custom_focus: Optional[int] = None,
+        custom_break: Optional[int] = None,
+    ):
+        # Pull persisted defaults; explicit args override (used by TimerScreen
+        # when returning home, so values stay sticky within a session).
+        prefs = preferences.load()
         self.selected_cycle = "25/5"
-        self.custom_focus = custom_focus
-        self.custom_break = custom_break
+        self.custom_focus = custom_focus if custom_focus is not None else prefs["custom_focus"]
+        self.custom_break = custom_break if custom_break is not None else prefs["custom_break"]
         self.today = stats.load_today()
         self._next_screen = None
 
@@ -29,28 +38,27 @@ class HomeScreen:
     def _build_widgets(self) -> None:
         center_x = WINDOW_W // 2
 
-        # Top bar — gear icon top-right
+        # --- Top bar ---
         self.settings_btn = IconButton(
             pygame.Rect(WINDOW_W - 24 - 36, 18, 36, 36),
             glyph="⚙",
             on_click=self._on_settings,
         )
 
-        # Cycle picker chips
+        # --- Cycle picker chips ---
         chip_w, chip_h, gap = 100, 36, 12
         total_w = chip_w * len(CYCLES) + gap * (len(CYCLES) - 1)
         start_x = center_x - total_w // 2
         self.chips: list[Chip] = []
         for i, (label, value) in enumerate(CYCLES):
-            rect = pygame.Rect(start_x + i * (chip_w + gap), 240, chip_w, chip_h)
+            rect = pygame.Rect(start_x + i * (chip_w + gap), 230, chip_w, chip_h)
             chip = Chip(rect, label, value, self._on_chip)
             chip.selected = value == self.selected_cycle
             self.chips.append(chip)
 
-        # Custom inputs (focus + break) — only drawn when Custom selected,
-        # but built always so click areas are valid.
-        input_w, input_h = 70, 38
+        # --- Custom inputs (focus + break) — only drawn when Custom selected ---
         # Layout: "Focus [ NN ] min     Break [ NN ] min" — centered as a group
+        input_w, input_h = 70, 38
         focus_label_w = theme.font(14, "regular").size("Focus")[0]
         break_label_w = theme.font(14, "regular").size("Break")[0]
         min_label_w   = theme.font(14, "regular").size("min")[0]
@@ -64,7 +72,7 @@ class HomeScreen:
         break_section_x = inputs_left + section_w + group_gap
         break_input_x = break_section_x + break_label_w + section_gap
 
-        self._inputs_y = 305
+        self._inputs_y = 295
         self.focus_input = NumberInput(
             pygame.Rect(focus_input_x, self._inputs_y, input_w, input_h),
             value=self.custom_focus,
@@ -77,28 +85,43 @@ class HomeScreen:
             max_digits=3,
             on_change=self._on_break_change,
         )
-        # Cache positions for labels so we draw consistently
         self._focus_label_pos = (inputs_left, self._inputs_y + input_h // 2)
         self._focus_min_pos = (focus_input_x + input_w + section_gap, self._inputs_y + input_h // 2)
         self._break_label_pos = (break_section_x, self._inputs_y + input_h // 2)
         self._break_min_pos = (break_input_x + input_w + section_gap, self._inputs_y + input_h // 2)
 
-        # Start Focus button
+        # --- Start Focus button ---
         btn_w, btn_h = 280, 56
         self.start_btn = Button(
-            pygame.Rect(center_x - btn_w // 2, 390, btn_w, btn_h),
+            pygame.Rect(center_x - btn_w // 2, 380, btn_w, btn_h),
             label="Start Focus",
             on_click=self._on_start,
             kind="primary",
         )
 
-        # Today stats card — bottom
+        # --- Snake Break tile — locked vs unlocked ---
+        snake_w, snake_h = 420, 52
+        snake_x = center_x - snake_w // 2
+        self._snake_tile_rect = pygame.Rect(snake_x, 460, snake_w, snake_h)
+        # The Button widget is used when unlocked; when locked we draw a card.
+        self.snake_btn = Button(
+            self._snake_tile_rect,
+            label="🐍  Snake Break",
+            on_click=self._on_play_snake,
+            kind="ghost",
+        )
+        self.snake_locked_card = Card(self._snake_tile_rect)
+
+        # --- Today stats card — bottom ---
         card_w, card_h = 720, 100
         self.stats_card = Card(
-            pygame.Rect(center_x - card_w // 2, 540, card_w, card_h)
+            pygame.Rect(center_x - card_w // 2, 550, card_w, card_h)
         )
 
     # --- event handlers ---
+
+    def _is_snake_unlocked(self) -> bool:
+        return self.today["sessions"] >= 1
 
     def _on_chip(self, value: str) -> None:
         self.selected_cycle = value
@@ -110,9 +133,18 @@ class HomeScreen:
 
     def _on_focus_change(self, v: int) -> None:
         self.custom_focus = v
+        self._persist_custom()
 
     def _on_break_change(self, v: int) -> None:
         self.custom_break = v
+        self._persist_custom()
+
+    def _persist_custom(self) -> None:
+        # Save the latest custom values so they survive a restart.
+        prefs = preferences.load()
+        prefs["custom_focus"] = self.custom_focus
+        prefs["custom_break"] = self.custom_break
+        preferences.save(prefs)
 
     def _selected_minutes(self) -> tuple[int, int]:
         if self.selected_cycle == "25/5":
@@ -139,6 +171,16 @@ class HomeScreen:
         from screens.settings import SettingsScreen
         self._next_screen = SettingsScreen()
 
+    def _on_play_snake(self) -> None:
+        # Open the embedded snake screen in standalone mode (no break clock).
+        from screens.break_game import BreakGameScreen
+        self._next_screen = BreakGameScreen(
+            custom_focus=self.custom_focus,
+            custom_break=self.custom_break,
+            selected_cycle=self.selected_cycle,
+            standalone=True,
+        )
+
     # --- screen API ---
 
     def handle_event(self, event: pygame.event.Event):
@@ -151,6 +193,9 @@ class HomeScreen:
             self.focus_input.handle_event(event)
             self.break_input.handle_event(event)
         self.start_btn.handle_event(event)
+        # Snake button only handles events when unlocked.
+        if self._is_snake_unlocked():
+            self.snake_btn.handle_event(event)
         nxt = self._next_screen
         self._next_screen = None
         return nxt
@@ -174,6 +219,12 @@ class HomeScreen:
 
         self.start_btn.draw(surface)
 
+        # Snake tile — locked card vs unlocked button.
+        if self._is_snake_unlocked():
+            self.snake_btn.draw(surface)
+        else:
+            self._draw_locked_snake_tile(surface)
+
         self.stats_card.draw(surface)
         self._draw_stats_content(surface)
 
@@ -191,6 +242,15 @@ class HomeScreen:
         blit_left_middle("Break", self._break_label_pos)
         self.break_input.draw(surface)
         blit_left_middle("min", self._break_min_pos)
+
+    def _draw_locked_snake_tile(self, surface: pygame.Surface) -> None:
+        self.snake_locked_card.draw(surface)
+        rect = self.snake_locked_card.rect
+        text = theme.font(14, "regular").render(
+            "🔒  Snake unlocks after 1 focus session today",
+            True, theme.TEXT_MUTED,
+        )
+        surface.blit(text, text.get_rect(center=rect.center))
 
     def _draw_stats_content(self, surface: pygame.Surface) -> None:
         rect = self.stats_card.rect
