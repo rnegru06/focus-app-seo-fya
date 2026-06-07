@@ -46,4 +46,4 @@ def mono_font(size: int, weight: str = "regular") -> pygame.font.Font:
     if bold and not chosen:
         f.set_bold(True)
     _cache[key] = f
-    return f
+    return 
