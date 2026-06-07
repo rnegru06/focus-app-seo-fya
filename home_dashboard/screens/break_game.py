@@ -232,9 +232,9 @@ class BreakGameScreen:
         self._move_accum = 0.0
 
         # Cache fonts used inside the game canvas.
-        self._font       = pygame.font.SysFont("consolas", 22)
-        self._small_font = pygame.font.SysFont("consolas", 18)
-        self._big_font   = pygame.font.SysFont("consolas", 50)
+        self._font       = theme.font(22)
+        self._small_font = theme.font(18)
+        self._big_font   = theme.font(50, "bold")
 
         # Internal canvas — all snake/fruit/bomb draws go here, then blit.
         self._canvas = pygame.Surface((GAME_W, GAME_H))
