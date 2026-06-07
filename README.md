@@ -31,10 +31,10 @@ focus-app-seo-fya/
 
 ```bash
 cd "<repo root>"
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r home_dashboard/requirements.txt
-python home_dashboard/main.py
+python3 home_dashboard/main.py
 ```
 
 ## Controls
@@ -45,8 +45,8 @@ python home_dashboard/main.py
 - **Start Focus** — begin the cycle.
 - **Pause / Resume** — toggle the timer (also pauses music).
 - **Stop / ← back arrow** — return to the home dashboard.
-- ** Play Snake** (during break) or ** Snake Break** (on home, once unlocked) — launches the snake game in a separate window.
-- **⚙ Gear icon** — open Settings (music picker, volume slider, reset today's stats).
+- **Play Snake** (during break) or ** Snake Break** (on home, once unlocked) — launches the snake game in a separate window.
+- **Gear icon** — open Settings (music picker, volume slider, reset today's stats).
 
 ### Snake mini-game (keyboard, in its own window)
 - **Arrow keys** — steer the snake.
