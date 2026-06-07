@@ -1,4 +1,5 @@
 """Linear Frost design tokens — colors, spacing, fonts."""
+from pathlib import Path
 import pygame
 
 BG           = (8, 9, 10)
@@ -13,37 +14,33 @@ SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG, SPACE_XL = 4, 8, 16, 24, 40
 
 RADIUS_SM, RADIUS_MD, RADIUS_LG = 6, 10, 16
 
-_FONT_CANDIDATES = {
-    "regular": ["Inter", "SF Pro Text", "Helvetica Neue", "Helvetica", "Arial"],
-    "bold":    ["Inter", "SF Pro Text", "Helvetica Neue", "Helvetica", "Arial"],
-}
-
-_MONO_CANDIDATES = ["SF Mono", "Menlo", "Monaco", "Consolas", "Courier New", "Courier"]
+# Single bundled TTF — same file used for both proportional and mono callers.
+_FONT_PATH = str(Path(__file__).resolve().parent / "assets" / "fonts" / "main.ttf")
 
 _cache: dict[tuple, pygame.font.Font] = {}
 
 
 def font(size: int, weight: str = "regular") -> pygame.font.Font:
+    """Proportional font at the given size. weight='bold' applies bold."""
     key = ("sans", size, weight)
     if key in _cache:
         return _cache[key]
-    bold = weight == "bold"
-    chosen = pygame.font.match_font(",".join(_FONT_CANDIDATES[weight]), bold=bold)
-    f = pygame.font.Font(chosen, size) if chosen else pygame.font.Font(None, size)
-    if bold and not chosen:
+    f = pygame.font.Font(_FONT_PATH, size)
+    if weight == "bold":
         f.set_bold(True)
     _cache[key] = f
     return f
 
 
 def mono_font(size: int, weight: str = "regular") -> pygame.font.Font:
+    """We only ship one TTF, so the countdown clock reuses the main font.
+    Most modern UI fonts have tabular figures, so digit width stays stable
+    enough for an mm:ss countdown."""
     key = ("mono", size, weight)
     if key in _cache:
         return _cache[key]
-    bold = weight == "bold"
-    chosen = pygame.font.match_font(",".join(_MONO_CANDIDATES), bold=bold)
-    f = pygame.font.Font(chosen, size) if chosen else pygame.font.Font(None, size)
-    if bold and not chosen:
+    f = pygame.font.Font(_FONT_PATH, size)
+    if weight == "bold":
         f.set_bold(True)
     _cache[key] = f
-    return 
+    return f
